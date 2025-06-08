@@ -1,74 +1,50 @@
-// 'use client'
-// import { useState } from 'react'
-
-// export default function LoginPage() {
-//   const [email, setEmail] = useState('')
-//   const [password, setPassword] = useState('')
-//   const [message, setMessage] = useState('')
-
-//   const handleLogin = async () => {
-//     try {
-//       const response = await fetch('http://localhost:5000/login', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json'
-//         },
-//         body: JSON.stringify({ email, password })
-//       })
-
-//       const data = await response.json()
-
-//       if (response.ok) {
-//         setMessage(`✅ Welcome! Role: ${data.role}`)
-//         // You can store role/token in localStorage or context here
-//       } else {
-//         setMessage(`❌ ${data.error}`)
-//       }
-//     } catch (error) {
-//       setMessage('❌ Cannot connect to server')
-//     }
-//   }
-
-//   return (
-//     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-//       <div className="bg-white p-8 rounded shadow-md w-80">
-//         <h1 className="text-2xl font-bold mb-6">Login</h1>
-//         <input
-//           className="border p-2 w-full mb-4"
-//           type="email"
-//           placeholder="Email"
-//           value={email}
-//           onChange={(e) => setEmail(e.target.value)}
-//         />
-//         <input
-//           className="border p-2 w-full mb-4"
-//           type="password"
-//           placeholder="Password"
-//           value={password}
-//           onChange={(e) => setPassword(e.target.value)}
-//         />
-//         <button
-//           className="bg-blue-500 text-white py-2 px-4 rounded w-full"
-//           onClick={handleLogin}
-//         >
-//           Login
-//         </button>
-//         {message && <p className="mt-4 text-sm text-center">{message}</p>}
-//       </div>
-//     </div>
-//   )
-// }
-
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({
+    email: '',
+    password: ''
+  });
+
+  const validateForm = () => {
+    const newErrors = {
+      email: '',
+      password: ''
+    };
+    let isValid = true;
+
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+      isValid = false;
+    } else if (!email.includes('@')) {
+      newErrors.email = 'Please enter a valid email address';
+      isValid = false;
+    }
+
+    if (!password.trim()) {
+      newErrors.password = 'Password is required';
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const res = await fetch('http://localhost:5000/login', {
@@ -82,7 +58,7 @@ export default function LoginPage() {
       if (!res.ok) {
         const text = await res.text();
         console.error("Raw response:", text);
-        setMessage("Failed to connect to server or bad response");
+        toast.error("Failed to connect to server or bad response");
         return;
       }
 
@@ -90,55 +66,108 @@ export default function LoginPage() {
       console.log("Response data:", data);
 
       if (data.success) {
-        setMessage(`Welcome, ${data.user.full_name}! Role: ${data.user.role}`);
-        // Redirect based on role (example)
+        toast.success(`Welcome, ${data.user.full_name}!`);
+        // Redirect based on role using Next.js router
         switch (data.user.role) {
           case 'admin':
-            window.location.href = '/dashboard/admin';
+            router.push('/dashboard/admin');
             break;
           case 'teacher':
-            window.location.href = '/dashboard/teacher';
+            router.push('/dashboard/teacher');
             break;
           case 'parent':
-            window.location.href = '/dashboard/parent';
+            router.push('/dashboard/parent');
             break;
           case 'principal':
-            window.location.href = '/dashboard/principal';
+            router.push('/dashboard/principal');
             break;
           default:
-            window.location.href = '/dashboard';
+            router.push('/dashboard');
         }
       } else {
-        setMessage(data.message);
+        toast.error(data.message || 'Login failed');
       }
     } catch (error) {
       console.error(error);
-      setMessage('Server error');
+      toast.error('Server error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <form onSubmit={handleLogin} className="bg-white p-8 rounded shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-4">Login</h1>
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full p-2 border rounded mb-4"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          className="w-full p-2 border rounded mb-4"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <button type="submit" className="w-full bg-blue-500 text-white p-2 rounded">
-          Login
-        </button>
-        {message && <p className="mt-4 text-red-500">{message}</p>}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-100 to-sky-200">
+      <form onSubmit={handleLogin} className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-sky-100">
+        <h1 className="text-3xl font-bold mb-6 text-sky-600 text-center">Welcome Back</h1>
+        <div className="space-y-4">
+          <div>
+            <label 
+              htmlFor="email" 
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              placeholder="Enter your email"
+              className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all ${
+                errors.email 
+                  ? 'border-red-300 focus:ring-red-400' 
+                  : 'border-sky-200'
+              }`}
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (errors.email) {
+                  setErrors(prev => ({ ...prev, email: '' }));
+                }
+              }}
+              disabled={isLoading}
+            />
+            {errors.email && (
+              <p className="mt-1 text-xs text-red-500">{errors.email}</p>
+            )}
+          </div>
+          <div>
+            <label 
+              htmlFor="password" 
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              placeholder="Enter your password"
+              className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all ${
+                errors.password 
+                  ? 'border-red-300 focus:ring-red-400' 
+                  : 'border-sky-200'
+              }`}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errors.password) {
+                  setErrors(prev => ({ ...prev, password: '' }));
+                }
+              }}
+              disabled={isLoading}
+            />
+            {errors.password && (
+              <p className="mt-1 text-xs text-red-500">{errors.password}</p>
+            )}
+          </div>
+          <button 
+            type="submit" 
+            className={`w-full bg-sky-500 hover:bg-sky-600 text-white p-3 rounded-lg font-medium transition-colors duration-200 shadow-md hover:shadow-lg ${
+              isLoading ? 'opacity-70 cursor-not-allowed' : ''
+            }`}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </div>
       </form>
     </div>
   );
