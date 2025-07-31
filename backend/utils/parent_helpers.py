@@ -213,4 +213,4 @@ def get_parent_attendance_data(parent_id):
     finally:
         cursor.close()
         db.close()
-        
+

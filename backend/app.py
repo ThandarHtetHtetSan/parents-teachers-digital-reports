@@ -4,6 +4,7 @@ from utils.auth_helpers import authenticate_user
 from utils.parent_helpers import get_parent_dashboard_data
 from utils.parent_helpers import get_parent_grades_data
 from utils.parent_helpers import get_parent_attendance_data
+from utils.common_helpers import get_announcements_by_role
 
 app = Flask(__name__)
 CORS(app)
@@ -71,7 +72,22 @@ def parent_attendance():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-        
+@app.route('/announcements', methods=['GET'])
+def announcements():
+    try:
+        role_name = request.args.get('role_name')
+        if not role_name:
+            return jsonify({"success": False, "message": "Role Name required"}), 400
+
+        announcements = get_announcements_by_role(role_name)
+        if announcements is not None:
+            return jsonify({"success": True, "announcements": announcements}), 200
+        else:
+            return jsonify({"success": False, "message": "No announcements found"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(debug=True)
 
