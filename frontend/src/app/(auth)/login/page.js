@@ -76,7 +76,7 @@ export default function LoginPage() {
             router.push('/dashboard/teacher');
             break;
           case 'parent':
-            localStorage.setItem('parent_id', data.user.id);
+            localStorage.setItem('parent', JSON.stringify(data.user));
             router.push('/dashboard/parent');
             break;
           case 'principal':

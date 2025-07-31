@@ -1,16 +1,22 @@
 'use client';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function ParentGrades() {
+  const router = useRouter();
   const [grades, setGrades] = useState([]);
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedExam, setSelectedExam] = useState('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const parentId = localStorage.getItem('parent_id');
-    if (!parentId) return;
-    fetch(`http://127.0.0.1:5000/parents/grades?parent_id=${parentId}`)
+    const parent = localStorage.getItem('parent');
+    if (!parent) {
+      router.push('/login');
+      return;
+    }
+    const parentObj = JSON.parse(parent);
+    fetch(`http://127.0.0.1:5000/parents/grades?parent_id=${parentObj.id}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {

@@ -1,14 +1,23 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function ParentLayout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const pathname = usePathname();
+  const router = useRouter();
+
+  const parent = localStorage.getItem('parent');
+  const parentObj = JSON.parse(parent);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('parent');
+    router.push('/login');
   };
 
   return (
@@ -53,12 +62,26 @@ export default function ParentLayout({ children }) {
                 />
               </svg>
             </button>
-            <button className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-100">
-              <div className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center text-white">
-                P
+            <div className="relative group">
+              <button className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-100 focus:outline-none">
+                <div className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center text-white">
+                  P
+                </div>
+                <span className="text-gray-700">{parentObj?.full_name}</span>
+                <svg className="w-4 h-4 ml-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {/* Dropdown */}
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-100 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-20">
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  Logout
+                </button>
               </div>
-              <span className="text-gray-700">Parent</span>
-            </button>
+            </div>
           </div>
         </div>
       </div>

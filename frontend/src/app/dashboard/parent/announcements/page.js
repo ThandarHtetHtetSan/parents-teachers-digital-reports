@@ -1,14 +1,19 @@
 'use client';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function ParentAnnouncements() {
+  const router = useRouter();
   const [announcements, setAnnouncements] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const parentId = localStorage.getItem('parent_id');
-    if (!parentId) return;
+    const parent = localStorage.getItem('parent');
+    if (!parent) {
+      router.push('/login');
+      return;
+    }
     fetch(`http://127.0.0.1:5000/announcements?role_name=parent`)
       .then(res => res.json())
       .then(data => {

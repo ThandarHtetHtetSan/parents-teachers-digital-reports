@@ -1,15 +1,21 @@
 'use client';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function ParentAttendance() {
+  const router = useRouter();
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [selectedYear, setSelectedYear] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const parentId = localStorage.getItem('parent_id');
-    if (!parentId) return;
-    fetch(`http://127.0.0.1:5000/parents/attendance?parent_id=${parentId}`)
+    const parent = localStorage.getItem('parent');
+    if (!parent) {
+      router.push('/login');
+      return;
+    }
+    const parentObj = JSON.parse(parent);
+    fetch(`http://127.0.0.1:5000/parents/attendance?parent_id=${parentObj.id}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {

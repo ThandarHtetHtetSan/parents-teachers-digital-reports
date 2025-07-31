@@ -1,16 +1,22 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { PieChart } from 'react-minimal-pie-chart';
+import { useRouter } from 'next/navigation';
 
 export default function ParentDashboard() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState(null);
 
   useEffect(() => {
-    const parentId = localStorage.getItem('parent_id');
-    if (!parentId) return;
+    const parent = localStorage.getItem('parent');
+    if (!parent) {
+      router.push('/login');
+      return;
+    }
+    const parentObj = JSON.parse(parent);
 
-    fetch(`http://127.0.0.1:5000/parents/dashboard?parent_id=${parentId}`)
+    fetch(`http://127.0.0.1:5000/parents/dashboard?parent_id=${parentObj.id}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) setDashboard(data.data);
