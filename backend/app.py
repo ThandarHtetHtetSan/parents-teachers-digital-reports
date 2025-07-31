@@ -1,95 +1,9 @@
- 
-
-# from flask import Flask
-# import mysql.connector
-# from mysql.connector import Error
-
-# app = Flask(__name__)
-
-# @app.route('/')
-# def test_connection():
-#     try:
-#         # Attempt to connect
-#         conn = mysql.connector.connect(
-#             host='localhost',
-#             user='root',
-#             password='root'  # replace with your actual password
-#         )
-#         if conn.is_connected():
-#             return '✅ Connected to MySQL successfully!'
-#     except Error as e:
-#         return f'❌ Failed to connect to MySQL: {e}'
-#     finally:
-#         if conn.is_connected():
-#             conn.close()
-
-# if __name__ == '__main__':
-#     app.run(debug=True)
-
-# from flask import Flask, request, jsonify
-# from flask_cors import CORS
-
-# app = Flask(__name__)
-# CORS(app)  # Enable CORS AFTER app is defined
-
-# @app.route('/login', methods=['POST'])
-# def login():
-#     data = request.get_json()
-#     email = data.get('email')
-#     password = data.get('password')
-
-#     # Dummy logic (replace with real DB logic)
-#     if email == 'test@example.com' and password == '123456':
-#         return jsonify({'message': 'Login successful', 'role': 'student'}), 200
-#     else:
-#         return jsonify({'error': 'Invalid credentials'}), 401
-
-# if __name__ == '__main__':
-#     app.run(debug=True)
-
-# from flask import Flask, request, jsonify
-# from flask_cors import CORS
-# import mysql.connector
-
-# app = Flask(__name__)
-# CORS(app)
-
-# # DB Connection
-# db = mysql.connector.connect(
-#     host="localhost",
-#     user="root",  # or the username you use in MySQL Workbench
-#     password="root",  # enter your real MySQL password
-#     database="digital-reports"
-# )
-
-# @app.route('/login', methods=['POST'])
-# def login():
-#     data = request.get_json()
-#     email = data.get('email')
-#     password = data.get('password')
-
-#     cursor = db.cursor(dictionary=True)
-#     query = """
-#         SELECT users.id, users.full_name, users.email, roles.name AS role
-#         FROM users
-#         JOIN roles ON users.role_id = roles.id
-#         WHERE users.email = %s AND users.password = %s
-#     """
-#     cursor.execute(query, (email, password))
-#     user = cursor.fetchone()
-#     cursor.close()
-
-#     if user:
-#         return jsonify({"message": "Login successful", "user": user}), 200
-#     else:
-#         return jsonify({"error": "Invalid credentials"}), 401
-
-# if __name__ == '__main__':
-#     app.run(debug=True)
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from utils.auth_helpers import authenticate_user
+from utils.parent_helpers import get_parent_dashboard_data
+from utils.parent_helpers import get_parent_grades_data
+from utils.parent_helpers import get_parent_attendance_data
 
 app = Flask(__name__)
 CORS(app)
@@ -112,6 +26,52 @@ def login():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+@app.route('/parents/dashboard', methods=['GET'])
+def parent_dashboard():
+    try:
+        parent_id = request.args.get('parent_id')
+        if not parent_id:
+            return jsonify({"success": False, "message": "Parent ID required"}), 400
+        
+        dashboard_data = get_parent_dashboard_data(parent_id)
+        if dashboard_data:
+            return jsonify({"success": True, "data": dashboard_data}), 200
+        else:
+            return jsonify({"success": False, "message": "Parent not found or no data"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/parents/grades', methods=['GET'])
+def parent_grades():
+    try:
+        parent_id = request.args.get('parent_id')
+        if not parent_id:
+            return jsonify({"success": False, "message": "Parent ID required"}), 400
+        
+        grades = get_parent_grades_data(parent_id)
+        if grades is not None:
+            return jsonify({"success": True, "grades": grades}), 200
+        else:
+            return jsonify({"success": False, "message": "No grades found"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/parents/attendance', methods=['GET'])
+def parent_attendance():
+    try:
+        parent_id = request.args.get('parent_id')
+        if not parent_id:
+            return jsonify({"success": False, "message": "Parent ID required"}), 400
+
+        attendance = get_parent_attendance_data(parent_id)
+        if attendance is not None:
+            return jsonify({"success": True, "attendance": attendance}), 200
+        else:
+            return jsonify({"success": False, "message": "No attendance found"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+        
 if __name__ == "__main__":
     app.run(debug=True)
 

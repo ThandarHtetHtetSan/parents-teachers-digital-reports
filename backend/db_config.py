@@ -1,16 +1,9 @@
 import mysql.connector
 
-# db = mysql.connector.connect(
-#     host="localhost",
-#     user="root",
-#     password="root",
-#     database="digital-reports"
-# )
-
 def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        password="root",
-        database="digital-reports"
+        password="Root@123",
+        database="digital_reports"
     )

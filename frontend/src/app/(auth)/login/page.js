@@ -47,7 +47,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:5000/login', {
+      const res = await fetch('http://127.0.0.1:5000/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,6 +76,7 @@ export default function LoginPage() {
             router.push('/dashboard/teacher');
             break;
           case 'parent':
+            localStorage.setItem('parent_id', data.user.id);
             router.push('/dashboard/parent');
             break;
           case 'principal':

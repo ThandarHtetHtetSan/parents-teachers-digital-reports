@@ -1,55 +1,35 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function ParentAttendance() {
-  // Mock data - replace with API call
-  const attendanceRecords = [
-    {
-      id: 1,
-      month: 'May 2025',
-      present_count: 18,
-      absent_count: 2,
-      total_count: 20,
-      percentage: 90,
-      date: '2025-05-31'
-    },
-    {
-      id: 2,
-      month: 'April 2025',
-      present_count: 20,
-      absent_count: 0,
-      total_count: 20,
-      percentage: 100,
-      date: '2025-04-30'
-    },
-    {
-      id: 3,
-      month: 'March 2025',
-      present_count: 19,
-      absent_count: 1,
-      total_count: 20,
-      percentage: 95,
-      date: '2025-03-31'
-    },
-    {
-      id: 4,
-      month: 'February 2025',
-      present_count: 17,
-      absent_count: 3,
-      total_count: 20,
-      percentage: 85,
-      date: '2025-02-28'
-    }
-  ];
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [selectedYear, setSelectedYear] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const [selectedYear, setSelectedYear] = useState('2025');
+  useEffect(() => {
+    const parentId = localStorage.getItem('parent_id');
+    if (!parentId) return;
+    fetch(`http://127.0.0.1:5000/parents/attendance?parent_id=${parentId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setAttendanceRecords(data.attendance);
+          // Set default year to latest year in data
+          if (data.attendance.length) {
+            setSelectedYear(data.attendance[0].year.toString());
+          }
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   // Get unique years for filter
-  const years = [...new Set(attendanceRecords.map(record => record.date.split('-')[0]))];
+  const years = [...new Set(attendanceRecords.map(record => record.year?.toString()))];
 
   // Filter attendance based on selected year
-  const filteredAttendance = attendanceRecords.filter(record => 
-    record.date.startsWith(selectedYear)
+  const filteredAttendance = attendanceRecords.filter(record =>
+    record.year?.toString() === selectedYear
   );
 
   // Calculate overall statistics
@@ -60,7 +40,13 @@ export default function ParentAttendance() {
     return acc;
   }, { totalPresent: 0, totalAbsent: 0, totalDays: 0 });
 
-  const overallPercentage = Math.round((overallStats.totalPresent / overallStats.totalDays) * 100);
+  const overallPercentage = overallStats.totalDays
+    ? Math.round((overallStats.totalPresent / overallStats.totalDays) * 100)
+    : 0;
+
+  if (loading) {
+    return <div className="p-8 text-center text-gray-500">Loading attendance...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -107,6 +93,7 @@ export default function ParentAttendance() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Present Days</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Absent Days</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Days</th>
@@ -116,7 +103,8 @@ export default function ParentAttendance() {
             <tbody className="divide-y divide-gray-100">
               {filteredAttendance.map((record) => (
                 <tr key={record.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.month}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{`${record.month} ${record.year}`}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.student_name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.present_count}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.absent_count}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.total_count}</td>
@@ -126,7 +114,7 @@ export default function ParentAttendance() {
                       record.percentage >= 80 ? 'bg-blue-50 text-blue-700' :
                       'bg-red-50 text-red-700'
                     }`}>
-                      {record.percentage}%
+                      {Math.round(record.percentage)}%
                     </span>
                   </td>
                 </tr>
@@ -137,4 +125,4 @@ export default function ParentAttendance() {
       </div>
     </div>
   );
-} 
+}

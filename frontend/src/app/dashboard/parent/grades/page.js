@@ -1,84 +1,44 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function ParentGrades() {
-  // Mock data - replace with API call
-  const grades = [
-    {
-      id: 1,
-      studentName: 'John Smith',
-      examName: 'First Term Examination',
-      subject: 'Mathematics',
-      grade: 'A',
-      score: 92,
-      year: '2025',
-      date: '2025-05-27'
-    },
-    {
-      id: 2,
-      studentName: 'John Smith',
-      examName: 'First Term Examination',
-      subject: 'Science',
-      grade: 'B+',
-      score: 88,
-      year: '2025',
-      date: '2025-05-27'
-    },
-    {
-      id: 3,
-      studentName: 'John Smith',
-      examName: 'First Term Examination',
-      subject: 'English',
-      grade: 'A-',
-      score: 90,
-      year: '2025',
-      date: '2025-05-27'
-    },
-    {
-      id: 4,
-      studentName: 'John Smith',
-      examName: 'Mid Term Examination',
-      subject: 'Mathematics',
-      grade: 'A',
-      score: 95,
-      year: '2025',
-      date: '2025-03-15'
-    },
-    {
-      id: 5,
-      studentName: 'John Smith',
-      examName: 'Mid Term Examination',
-      subject: 'Science',
-      grade: 'A-',
-      score: 89,
-      year: '2025',
-      date: '2025-03-15'
-    },
-    {
-      id: 6,
-      studentName: 'John Smith',
-      examName: 'Mid Term Examination',
-      subject: 'English',
-      grade: 'B+',
-      score: 87,
-      year: '2025',
-      date: '2025-03-15'
-    }
-  ];
-
-  const [selectedYear, setSelectedYear] = useState('2025');
+  const [grades, setGrades] = useState([]);
+  const [selectedYear, setSelectedYear] = useState('');
   const [selectedExam, setSelectedExam] = useState('all');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const parentId = localStorage.getItem('parent_id');
+    if (!parentId) return;
+    fetch(`http://127.0.0.1:5000/parents/grades?parent_id=${parentId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setGrades(data.grades);
+          // Set default year filter to latest year
+          if (data.grades.length) {
+            setSelectedYear(data.grades[0].year);
+          }
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   // Get unique years and exam names for filters
   const years = [...new Set(grades.map(grade => grade.year))];
-  const examNames = [...new Set(grades.map(grade => grade.examName))];
+  const examNames = [...new Set(grades.map(grade => grade.exam_name))];
 
   // Filter grades based on selected filters
   const filteredGrades = grades.filter(grade => {
     const yearMatch = grade.year === selectedYear;
-    const examMatch = selectedExam === 'all' || grade.examName === selectedExam;
+    const examMatch = selectedExam === 'all' || grade.exam_name === selectedExam;
     return yearMatch && examMatch;
   });
+
+  if (loading) {
+    return <div className="p-8 text-center text-gray-500">Loading grades...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -116,13 +76,13 @@ export default function ParentGrades() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredGrades.map((grade) => (
-                <tr key={grade.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.examName}</td>
+              {filteredGrades.map((grade, idx) => (
+                <tr key={idx} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.exam_name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.subject}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -131,16 +91,12 @@ export default function ParentGrades() {
                       grade.grade === 'B+' ? 'bg-blue-50 text-blue-700' :
                       'bg-gray-100 text-gray-800'
                     }`}>
-                      {grade.grade}
+                      {grade.letter_grade}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.score}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(grade.date).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
+                    {grade.year}
                   </td>
                 </tr>
               ))}
@@ -150,4 +106,4 @@ export default function ParentGrades() {
       </div>
     </div>
   );
-} 
+}
