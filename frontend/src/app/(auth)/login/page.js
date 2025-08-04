@@ -97,8 +97,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-100 to-sky-200">
-      <form onSubmit={handleLogin} className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-sky-100">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center bg-gray-50"
+      style={{
+        backgroundImage: "url('/main-bg.png')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      <form onSubmit={handleLogin} className="bg-white/50 p-8 rounded-xl shadow-lg w-full max-w-lg border border-sky-100">
         <h1 className="text-3xl font-bold mb-6 text-sky-600 text-center">Welcome Back</h1>
         <div className="space-y-4">
           <div>
