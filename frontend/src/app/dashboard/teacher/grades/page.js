@@ -1,125 +1,164 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function TeacherGrades() {
-  // Mock data - replace with API calls
-  const teacherInfo = {
-    id: 1,
-    name: 'Mrs. Johnson',
-    classes: [
-      { id: 1, name: 'Grade 5A', subject: 'Mathematics' },
-      { id: 2, name: 'Grade 5B', subject: 'Science' }
-    ]
-  };
-
-  const students = [
-    { id: 1, name: 'John Smith', class: 'Grade 5A' },
-    { id: 2, name: 'Emma Johnson', class: 'Grade 5A' },
-    { id: 3, name: 'Michael Brown', class: 'Grade 5B' },
-    { id: 4, name: 'Sarah Wilson', class: 'Grade 5B' }
-  ];
-
-  const examTypes = [
-    'Mid-term Exam',
-    'Final Exam',
-    'Unit Test 1',
-    'Unit Test 2',
-    'Unit Test 3',
-    'Quiz 1',
-    'Quiz 2',
-    'Assignment 1',
-    'Assignment 2'
-  ];
-
-  const gradeList = [
-    {
-      id: 1,
-      class: 'Grade 5A',
-      subject: 'Mathematics',
-      teacher: 'Mrs. Johnson',
-      exam: 'Mid-term Exam',
-      year: '2024',
-      date: '2024-03-15',
-      grades: [
-        { studentId: 1, score: 85, grade: 'A', remark: 'Excellent work' },
-        { studentId: 2, score: 78, grade: 'B+', remark: 'Good effort' }
-      ]
-    },
-    {
-      id: 2,
-      class: 'Grade 5B',
-      subject: 'Science',
-      teacher: 'Mrs. Johnson',
-      exam: 'Unit Test 3',
-      year: '2024',
-      date: '2024-03-10',
-      grades: [
-        { studentId: 3, score: 92, grade: 'A-', remark: 'Very good understanding' },
-        { studentId: 4, score: 75, grade: 'B', remark: 'Needs improvement' }
-      ]
-    }
-  ];
-
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [grades, setGrades] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [exams, setExams] = useState([]);
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedExam, setSelectedExam] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
-  const [examName, setExamName] = useState('');
-  const [examDate, setExamDate] = useState('');
-  const [examYear, setExamYear] = useState(new Date().getFullYear().toString());
-  const [grades, setGrades] = useState({});
   const [isAddingNew, setIsAddingNew] = useState(false);
 
-  // Filter students based on selected class
-  const filteredStudents = students.filter(student => 
-    !selectedClass || student.class === selectedClass
+  // Add New Grade form states
+  const [newGradeData, setNewGradeData] = useState({
+    selectedClass: '',
+    selectedSubject: '',
+    selectedExam: '',
+    selectedYear: new Date().getFullYear().toString(),
+    grades: {}
+  });
+
+  useEffect(() => {
+    const teacher = localStorage.getItem('teacher');
+    if (!teacher) {
+      router.push('/login');
+      return;
+    }
+    const teacherObj = JSON.parse(teacher);
+
+    // Fetch grades data
+    fetch(`http://127.0.0.1:5000/teachers/grades?teacher_id=${teacherObj.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setGrades(data.grades);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+
+    // Fetch classes data
+    fetch(`http://127.0.0.1:5000/teachers/classes?teacher_id=${teacherObj.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setClasses(data.classes);
+          // Set first class as default
+          if (data.classes.length > 0) {
+            const firstClass = data.classes[0];
+            setSelectedClass(`${firstClass.class_name} - ${firstClass.subject_name}`);
+            setNewGradeData(prev => ({
+              ...prev,
+              selectedClass: `${firstClass.class_name} - ${firstClass.subject_name}`,
+              selectedSubject: firstClass.subject_name
+            }));
+          }
+        }
+      })
+      .catch(() => {});
+
+    // Fetch exams data
+    fetch(`http://127.0.0.1:5000/exams`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setExams(data.exams);
+          setSelectedExam(data.exams[0].name);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Filter grades based on selections
+  const filteredGrades = grades.filter(grade => {
+    const classMatch = !selectedClass || 
+      `${grade.class_name} - ${grade.subject_name}` === selectedClass;
+    const examMatch = !selectedExam || grade.exam_name === selectedExam;
+    const yearMatch = !selectedYear || grade.year === parseInt(selectedYear);
+    return classMatch && examMatch && yearMatch;
+  });
+
+  // Get students for selected class in Add New Grade form
+  const selectedClassData = classes.find(cls => 
+    `${cls.class_name} - ${cls.subject_name}` === newGradeData.selectedClass
   );
 
-  // Filter grade list based on selections
-  const filteredGrades = gradeList.filter(grade => {
-    const classMatch = !selectedClass || grade.class === selectedClass;
-    const examMatch = !selectedExam || grade.exam === selectedExam;
-    const yearMatch = !selectedYear || grade.year === selectedYear;
-    const teacherMatch = grade.teacher === teacherInfo.name;
-    return classMatch && examMatch && yearMatch && teacherMatch;
-  });
-
-  // Get unique exams for filter
-  const availableExams = [...new Set(gradeList
-    .filter(grade => grade.teacher === teacherInfo.name)
-    .map(grade => grade.exam))];
-
-  // Generate year options (current year and 2 years back)
-  const yearOptions = Array.from({ length: 3 }, (_, i) => {
-    const year = new Date().getFullYear() - i;
-    return year.toString();
-  });
-
   const handleGradeChange = (studentId, field, value) => {
-    setGrades(prev => ({
+    const isScore = field === 'score';
+    let grade = '';
+    if (isScore) {
+      if (value < 0 || value > 100) {
+        alert('Score must be between 0 and 100.');
+        return;
+      }
+      grade = value >= 80 ? 'A' : value >= 70 ? 'B' : value >= 60 ? 'C' : value >= 50 ? 'D' : value >= 40 ? 'E' : 'F';
+    }
+    setNewGradeData(prev => ({
       ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        [field]: value
+      grades: {
+        ...prev.grades,
+        [studentId]: {
+          ...prev.grades[studentId],
+          [field]: value,
+          grade: isScore ? grade : prev.grades[studentId]?.grade || ''
+        }
       }
     }));
   };
 
-  const handleSubmitGrades = () => {
-    // TODO: Implement API call to save grades
-    console.log('Saving grades:', {
-      class: selectedClass,
-      examName,
-      examDate,
-      examYear,
-      grades
-    });
-    // Reset form
-    setExamName('');
-    setExamDate('');
-    setExamYear(new Date().getFullYear().toString());
-    setGrades({});
-    setIsAddingNew(false);
+  const handleSubmitGrades = async () => {
+    try {
+      const teacher = localStorage.getItem('teacher');
+      if (!teacher) {
+        alert('Teacher session not found. Please login again.');
+        return;
+      }
+      const teacherObj = JSON.parse(teacher);
+
+      const response = await fetch('http://127.0.0.1:5000/teachers/grades', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          teacher_id: teacherObj.id,
+          grade_data: newGradeData
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(result.message);
+        // Reset form
+        setNewGradeData(prev => ({
+          ...prev,
+          grades: {}
+        }));
+        setIsAddingNew(false);
+        
+        // Refresh grades data
+        const gradesResponse = await fetch(`http://127.0.0.1:5000/teachers/grades?teacher_id=${teacherObj.id}`);
+        const gradesData = await gradesResponse.json();
+        if (gradesData.success) {
+          setGrades(gradesData.grades);
+        }
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error saving grades:', error);
+      alert('Failed to save grades. Please try again.');
+    }
   };
+
+  if (loading) {
+    return <div className="p-8 text-center text-gray-500">Loading grades...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -136,36 +175,47 @@ export default function TeacherGrades() {
       {/* Filters */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-          >
-            <option value="">All Classes</option>
-            {teacherInfo.classes.map(cls => (
-              <option key={cls.id} value={cls.name}>{cls.name} - {cls.subject}</option>
-            ))}
-          </select>
-          <select
-            value={selectedExam}
-            onChange={(e) => setSelectedExam(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-          >
-            <option value="">All Exams</option>
-            {availableExams.map(exam => (
-              <option key={exam} value={exam}>{exam}</option>
-            ))}
-          </select>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-          >
-            <option value="">All Years</option>
-            {yearOptions.map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+            >
+              {classes.map(cls => (
+                <option key={`${cls.class_id}_${cls.subject_id}`} value={`${cls.class_name} - ${cls.subject_name}`}>
+                  {cls.class_name} - {cls.subject_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Exam</label>
+            <select
+              value={selectedExam}
+              onChange={(e) => setSelectedExam(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+            >
+              {exams.map(exam => (
+                <option key={exam.id} value={exam.name}>{exam.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+            >
+              {Array.from({ length: 3 }, (_, i) => {
+                const year = new Date().getFullYear() - i;
+                return year.toString();
+              }).map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -173,36 +223,62 @@ export default function TeacherGrades() {
       {isAddingNew && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-medium text-gray-800 mb-4">Add New Grades</h2>
+          
+          {/* Selection Fields */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <select
-              value={examName}
-              onChange={(e) => setExamName(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-            >
-              <option value="">Select Exam Type</option>
-              {examTypes.map(exam => (
-                <option key={exam} value={exam}>{exam}</option>
-              ))}
-            </select>
-            <input
-              type="date"
-              value={examDate}
-              onChange={(e) => setExamDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-            />
-            <select
-              value={examYear}
-              onChange={(e) => setExamYear(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-            >
-              {yearOptions.map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
+              <select
+                value={newGradeData.selectedClass}
+                onChange={(e) => {
+                  const [className, subjectName] = e.target.value.split(' - ');
+                  setNewGradeData(prev => ({
+                    ...prev,
+                    selectedClass: e.target.value,
+                    selectedSubject: subjectName
+                  }));
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              >
+                {classes.map(cls => (
+                  <option key={`${cls.class_id}_${cls.subject_id}`} value={`${cls.class_name} - ${cls.subject_name}`}>
+                    {cls.class_name} - {cls.subject_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Exam</label>
+              <select
+                value={newGradeData.selectedExam}
+                onChange={(e) => setNewGradeData(prev => ({ ...prev, selectedExam: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              >
+                <option value="">Select Exam</option>
+                {exams.map(exam => (
+                  <option key={exam.id} value={exam.name}>{exam.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+              <select
+                value={newGradeData.selectedYear}
+                onChange={(e) => setNewGradeData(prev => ({ ...prev, selectedYear: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              >
+                {Array.from({ length: 3 }, (_, i) => {
+                  const year = new Date().getFullYear() - i;
+                  return year.toString();
+                }).map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Students List */}
-          {selectedClass && (
+          {selectedClassData && (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -214,37 +290,28 @@ export default function TeacherGrades() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredStudents.map((student) => (
-                    <tr key={student.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
+                  {selectedClassData.students.map((student) => (
+                    <tr key={student.student_id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.student_name}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <input
                           type="number"
                           min="0"
                           max="100"
-                          value={grades[student.id]?.score || ''}
-                          onChange={(e) => handleGradeChange(student.id, 'score', parseInt(e.target.value) || '')}
+                          value={newGradeData.grades[student.student_id]?.score || ''}
+                          onChange={(e) => handleGradeChange(student.student_id, 'score', parseInt(e.target.value) || '')}
                           className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <select
-                          value={grades[student.id]?.grade || ''}
-                          onChange={(e) => handleGradeChange(student.id, 'grade', e.target.value)}
-                          className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                        >
-                          <option value="">Select Grade</option>
-                          {['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'F'].map(grade => (
-                            <option key={grade} value={grade}>{grade}</option>
-                          ))}
-                        </select>
+                        {newGradeData.grades[student.student_id]?.grade || ''}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <input
                           type="text"
                           placeholder="Add remark"
-                          value={grades[student.id]?.remark || ''}
-                          onChange={(e) => handleGradeChange(student.id, 'remark', e.target.value)}
+                          value={newGradeData.grades[student.student_id]?.remark || ''}
+                          onChange={(e) => handleGradeChange(student.student_id, 'remark', e.target.value)}
                           className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                         />
                       </td>
@@ -256,11 +323,11 @@ export default function TeacherGrades() {
           )}
 
           {/* Submit Button */}
-          {selectedClass && (
+          {selectedClassData && newGradeData.selectedExam && newGradeData.selectedYear && (
             <div className="flex justify-end mt-4">
               <button
                 onClick={handleSubmitGrades}
-                disabled={!examName || !examDate || !examYear || Object.keys(grades).length === 0}
+                disabled={Object.keys(newGradeData.grades).length === 0}
                 className="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-medium hover:bg-sky-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Grades
@@ -280,31 +347,32 @@ export default function TeacherGrades() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exam</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remark</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredGrades.flatMap(gradeRecord => 
-                gradeRecord.grades.map(grade => {
-                  const student = students.find(s => s.id === grade.studentId);
-                  return (
-                    <tr key={`${gradeRecord.id}-${grade.studentId}`} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student?.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{gradeRecord.class}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{gradeRecord.subject}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{gradeRecord.exam}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(gradeRecord.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.score}%</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-sky-600">{grade.grade}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{grade.remark}</td>
-                    </tr>
-                  );
-                })
+              {filteredGrades.length > 0 ? (
+                filteredGrades.map((grade) => (
+                  <tr key={grade.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.student_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.class_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.subject_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.exam_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.year}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.score}%</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-sky-600">{grade.letter_grade}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{grade.remark || '-'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" className="px-6 py-4 text-center text-sm text-gray-500">
+                    No grades found.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

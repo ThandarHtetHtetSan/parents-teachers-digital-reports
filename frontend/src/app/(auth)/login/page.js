@@ -55,12 +55,12 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Raw response:", text);
-        toast.error("Failed to connect to server or bad response");
-        return;
-      }
+      // if (!res.ok) {
+      //   const text = await res.text();
+      //   console.error("Raw response:", text);
+      //   toast.error("Failed to connect to server or bad response");
+      //   return;
+      // }
 
       const data = await res.json();
       console.log("Response data:", data);
@@ -73,6 +73,7 @@ export default function LoginPage() {
             router.push('/dashboard/admin');
             break;
           case 'teacher':
+            localStorage.setItem('teacher', JSON.stringify(data.user));
             router.push('/dashboard/teacher');
             break;
           case 'parent':
