@@ -20,6 +20,7 @@ from utils.principal_helpers import (
     get_principal_grades,
     get_principal_attendance
 )
+from utils.admin_helpers import get_admin_dashboard_data
 
 app = Flask(__name__)
 CORS(app)
@@ -357,6 +358,164 @@ def get_subjects():
         cursor.close()
         db.close()
         return jsonify({"success": True, "subjects": subjects}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/admin/dashboard', methods=['GET'])
+def admin_dashboard():
+    try:
+        dashboard_data = get_admin_dashboard_data()
+        if dashboard_data:
+            return jsonify({"success": True, "data": dashboard_data}), 200
+        else:
+            return jsonify({"success": False, "message": "No data available"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/admin/users', methods=['GET'])
+def admin_get_users():
+    try:
+        from db_config import get_db_connection
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT u.id, u.full_name, u.email, u.role_id, u.status, u.created_at, r.name as role_name
+            FROM users u
+            LEFT JOIN roles r ON u.role_id = r.id
+            ORDER BY u.id DESC
+        """)
+        users = cursor.fetchall()
+        cursor.close()
+        db.close()
+        return jsonify({"success": True, "users": users}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/admin/users', methods=['POST'])
+def admin_create_user():
+    try:
+        data = request.get_json()
+        full_name = data.get('full_name')
+        email = data.get('email')
+        password = data.get('password')
+        role_id = data.get('role_id')
+        status = data.get('status', 'active')
+        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        if not full_name or not email or not password or not role_id:
+            return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+        from db_config import get_db_connection
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute("""
+            INSERT INTO users (full_name, email, password, role_id, status, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (full_name, email, password, role_id, status, created_at))
+        db.commit()
+        cursor.close()
+        db.close()
+        return jsonify({"success": True, "message": "User created"}), 201
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/admin/users/<int:user_id>', methods=['PUT'])
+def admin_update_user(user_id):
+    try:
+        data = request.get_json()
+        full_name = data.get('full_name')
+        email = data.get('email')
+        password = data.get('password')
+        role_id = data.get('role_id')
+        status = data.get('status')
+
+        if not full_name or not email or not role_id or not status:
+            return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+        from db_config import get_db_connection
+        db = get_db_connection()
+        cursor = db.cursor()
+        if password:
+            cursor.execute("""
+                UPDATE users SET full_name=%s, email=%s, password=%s, role_id=%s, status=%s WHERE id=%s
+            """, (full_name, email, password, role_id, status, user_id))
+        else:
+            cursor.execute("""
+                UPDATE users SET full_name=%s, email=%s, role_id=%s, status=%s WHERE id=%s
+            """, (full_name, email, role_id, status, user_id))
+        db.commit()
+        cursor.close()
+        db.close()
+        return jsonify({"success": True, "message": "User updated"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/admin/students', methods=['GET'])
+def admin_get_students():
+    try:
+        from db_config import get_db_connection
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT s.id, s.name, s.student_code, s.class_id, s.user_id
+            FROM students s
+            ORDER BY s.id DESC
+        """)
+        students = cursor.fetchall()
+        cursor.close()
+        db.close()
+        return jsonify({"success": True, "students": students}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/admin/students', methods=['POST'])
+def admin_create_student():
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        student_code = data.get('student_code')
+        class_id = data.get('class_id')
+        user_id = data.get('user_id')
+
+        if not name or not student_code or not class_id or not user_id:
+            return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+        from db_config import get_db_connection
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute("""
+            INSERT INTO students (name, student_code, class_id, user_id)
+            VALUES (%s, %s, %s, %s)
+        """, (name, student_code, class_id, user_id))
+        db.commit()
+        cursor.close()
+        db.close()
+        return jsonify({"success": True, "message": "Student created"}), 201
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/admin/students/<int:student_id>', methods=['PUT'])
+def admin_update_student(student_id):
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        student_code = data.get('student_code')
+        class_id = data.get('class_id')
+        user_id = data.get('user_id')
+
+        if not name or not student_code or not class_id or not user_id:
+            return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+        from db_config import get_db_connection
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute("""
+            UPDATE students SET name=%s, student_code=%s, class_id=%s, user_id=%s WHERE id=%s
+        """, (name, student_code, class_id, user_id, student_id))
+        db.commit()
+        cursor.close()
+        db.close()
+        return jsonify({"success": True, "message": "Student updated"}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
