@@ -422,4 +422,5 @@ def add_teacher_attendance(teacher_id, attendance_data):
         return {"success": False, "message": str(e)}
     finally:
         cursor.close()
-        db.close() 
+        db.close()
+
